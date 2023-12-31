@@ -39,15 +39,15 @@ module Data.PartialSemigroup
 where
 
 import Control.Applicative (ZipList (..), (<$>), (<*>))
-import Control.Monad ((>>=))
+import Control.Monad (foldM, (>>=))
 import Data.Either (Either (..))
-import Data.Function ((.))
+import Data.Function ((.), ($))
 import Data.Functor.Identity (Identity (..))
 import Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import Data.Maybe (Maybe (..))
 import Data.Monoid (Product (..), Sum (..))
 import Data.Semigroup (Semigroup (..))
-import Prelude (Eq, Num (..), Ord, Read, Show)
+import Prelude (Enum (..), Eq (..), error, Integral (..), Num (..), odd, Ord (..), otherwise, Read, Show)
 
 -- $setup
 --
@@ -97,7 +97,33 @@ infixr 6 <>?
 --      * if these things /are/ all defined, then the axiom for total semigroups
 --        @x '<>' (y '<>' z) = (x '<>' y) '<>' z@ must hold.
 class PartialSemigroup a where
+  -- | A partial associative operation.
   (<>?) :: a -> a -> Maybe a
+  x <>? y = psconcat $ x :| [y]
+
+  -- | Reduce a non-empty list with '<>?'.
+  --
+  -- @since 0.7.0.0
+  psconcat :: NonEmpty a -> Maybe a
+  psconcat (x :| xs) = foldM (<>?) x xs
+
+  -- | Repeat a value @n@ times.
+  --
+  -- @since 0.7.0.0
+  pstimes :: Integral b => b -> a -> Maybe a
+  pstimes = pstimesDefault
+
+  {-# MINIMAL (<>?) | psconcat #-}
+
+-- | Efficiently exponentiate a value @x@ to the @n@th power.
+pstimesDefault :: (PartialSemigroup a, Integral b) => b -> a -> Maybe a
+pstimesDefault n x
+  | n <  toEnum 1 = error "Exponentiation only defined with positive exponent"
+  | n == toEnum 1 = Just x
+  | odd n         = pstimesDefault (pred n) x >>= (x <>?)
+  | otherwise     = do
+      halfNTimes <- pstimesDefault (n `quot` 2) x
+      halfNTimes <>? halfNTimes
 
 --------------------------------------------------------------------------------
 
@@ -237,11 +263,8 @@ partialConcat x =
 -- >>> partialConcat1 (Left "a" :| [Left "b", Right "c"])
 -- Nothing
 partialConcat1 :: PartialSemigroup a => NonEmpty a -> Maybe a
-partialConcat1 (x :| []) = Just x
-partialConcat1 (x :| (y : zs)) =
-  do
-    a <- x <>? y
-    partialConcat1 (a :| zs)
+partialConcat1 = psconcat
+{-# DEPRECATED partialConcat1 "Use psconcat instead" #-}
 
 -- | ==== Examples
 --
