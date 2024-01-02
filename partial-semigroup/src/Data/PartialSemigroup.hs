@@ -47,6 +47,7 @@ import Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import Data.Maybe (Maybe (..))
 import Data.Monoid (Product (..), Sum (..))
 import Data.Semigroup (Semigroup (..))
+import Data.Void (Void)
 import Prelude (Enum (..), Eq (..), error, Integral (..), Num (..), odd, Ord (..), otherwise, Read, Show)
 
 -- $setup
@@ -98,6 +99,8 @@ infixr 6 <>?
 --        @x '<>' (y '<>' z) = (x '<>' y) '<>' z@ must hold.
 class PartialSemigroup a where
   -- | A partial associative operation.
+  --
+  -- @since 0.1.0.1
   (<>?) :: a -> a -> Maybe a
   x <>? y = psconcat $ x :| [y]
 
@@ -127,13 +130,53 @@ pstimesDefault n x
 
 --------------------------------------------------------------------------------
 
-instance PartialSemigroup () where
-  () <>? () = Just ()
+-- | The empty set is a partial semigroup, with its semigroup
+-- operation everywhere undefined (yields @Nothing@).
+--
+-- Note that this semigroup is different from the instance for
+-- @'Total' 'Void'@, for which @(Total undefined) <>? (Total
+-- undefined) == Just (Total undefined)@.
+--
+-- @since 0.7.0.0
+instance PartialSemigroup Void where
+  _ <>? _ = Nothing
+  pstimes n _
+    | n < toEnum 1 = error "Exponentiation only defined with positive exponent"
+    | otherwise    = Nothing
 
 --------------------------------------------------------------------------------
 
+-- | The unit set is the trivial (total) semigroup.
+--
+-- @since 0.0.0.1
+instance PartialSemigroup () where
+  _ <>? _    = Just ()
+  psconcat _ = Just ()
+  pstimes n _
+    | n < toEnum 1 = error "Exponentiation only defined with positive exponent"
+    | otherwise    = Just ()
+
+--------------------------------------------------------------------------------
+
+-- | Lists form a (total) semigroup under concatenation.
+--
+-- @since 0.0.0.1
 instance PartialSemigroup [a] where
   x <>? y = Just (x <> y)
+
+--------------------------------------------------------------------------------
+
+-- | Non-empty lists form a (total) semigroup under concatenation.
+--
+-- @since 0.7.0.0
+instance PartialSemigroup (NonEmpty a) where
+  x <>? y = Just (x <> y)
+
+--------------------------------------------------------------------------------
+
+instance PartialSemigroup b => PartialSemigroup (a -> b) where
+  f <>? g = \x -> f x <>? g x
+  stimes n f e = stimes n $ f e
 
 --------------------------------------------------------------------------------
 
@@ -188,21 +231,87 @@ instance
 -- >>> x <>? y
 -- Nothing
 
-instance (PartialSemigroup a, PartialSemigroup b) => PartialSemigroup (a, b) where
+-- | The cartesian product of two partial semigroups is a partial semigroup,
+-- with append defined component-wise.
+instance
+  ( PartialSemigroup a
+  , PartialSemigroup b
+  ) => PartialSemigroup (a, b)
+  where
   (a, b) <>? (a', b') =
     (,)
       <$> (a <>? a')
       <*> (b <>? b')
+  pstimes n (a, b) =
+    (,)
+      <$> pstimes n a
+      <*> pstimes n b
 
+-- | The cartesian product of three partial semigroups is a partial semigroup,
+-- with append defined component-wise.
 instance
-  (PartialSemigroup a, PartialSemigroup b, PartialSemigroup c) =>
-  PartialSemigroup (a, b, c)
+  ( PartialSemigroup a
+  , PartialSemigroup b
+  , PartialSemigroup c
+  ) => PartialSemigroup (a, b, c)
   where
   (a, b, c) <>? (a', b', c') =
     (,,)
       <$> (a <>? a')
       <*> (b <>? b')
       <*> (c <>? c')
+  pstimes n (a, b, c) =
+    (,,)
+      <$> pstimes n a
+      <*> pstimes n b
+      <*> pstimes n c
+
+-- | The cartesian product of four partial semigroups is a partial semigroup,
+-- with append defined component-wise.
+instance
+  ( PartialSemigroup a
+  , PartialSemigroup b
+  , PartialSemigroup c
+  , PartialSemigroup d
+  ) => PartialSemigroup (a, b, c, d)
+  where
+  (a, b, c, d) <>? (a', b', c', d') =
+    (,,,)
+      <$> (a <>? a')
+      <*> (b <>? b')
+      <*> (c <>? c')
+      <*> (d <>? d')
+  pstimes n (a, b, c, d) =
+    (,,,)
+      <$> pstimes n a
+      <*> pstimes n b
+      <*> pstimes n c
+      <*> pstimes n d
+
+-- | The cartesian product of five partial semigroups is a partial semigroup,
+-- with append defined component-wise.
+instance
+  ( PartialSemigroup a
+  , PartialSemigroup b
+  , PartialSemigroup c
+  , PartialSemigroup d
+  , PartialSemigroup e
+  ) => PartialSemigroup (a, b, c, d, e)
+  where
+  (a, b, c, d, e) <>? (a', b', c', d', e') =
+    (,,,,)
+      <$> (a <>? a')
+      <*> (b <>? b')
+      <*> (c <>? c')
+      <*> (d <>? d')
+      <*> (e <>? e')
+  pstimes n (a, b, c, d, e) =
+    (,,,,)
+      <$> pstimes n a
+      <*> pstimes n b
+      <*> pstimes n c
+      <*> pstimes n d
+      <*> pstimes n e
 
 --------------------------------------------------------------------------------
 
