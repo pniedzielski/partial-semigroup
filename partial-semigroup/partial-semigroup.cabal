@@ -1,7 +1,7 @@
 cabal-version: 3.0
 
 name: partial-semigroup
-version: 0.6.0.2
+version: 0.6.0.3
 synopsis: A partial binary associative operator
 category: Algebra
 
@@ -29,7 +29,7 @@ common base
     default-language: GHC2021
     ghc-options: -Wall
     build-depends:
-      , base ^>= 4.16 || ^>= 4.17 || ^>= 4.18
+      , base ^>= 4.16 || ^>= 4.17 || ^>= 4.18 || ^>= 4.19 || ^>= 4.20 || ^>= 4.21
 
 common test
     import: base
